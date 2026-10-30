@@ -117,7 +117,7 @@ class ClinicMetadataResponse(BaseModel):
 
     id: UUID
     name: str
-    tax_id: str
+    tax_id: str | None = None
     legal_name: str | None = None
     address: dict | None
     phone: str | None
@@ -247,7 +247,7 @@ class SystemSetup(BaseModel):
     # step resolves without a second user.
     admin_is_professional: bool = False
     clinic_name: str = Field(min_length=1, max_length=200)
-    clinic_tax_id: str = Field(min_length=1, max_length=20)
+    clinic_tax_id: str | None = Field(default=None, max_length=20)
     # Optional address, same keys as ClinicAddressUpdate — filling street
     # here completes the "clinic info" onboarding step from the wizard.
     clinic_street: str | None = Field(default=None, max_length=200)

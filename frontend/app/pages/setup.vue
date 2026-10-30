@@ -83,7 +83,7 @@ const localeOptions = computed(() =>
 )
 
 const taxIdLabel = computed(() =>
-  preset.value?.tax_id_pattern ? preset.value.tax_id_label : t('setup.taxIdGeneric')
+  `${preset.value?.tax_id_pattern ? preset.value.tax_id_label : t('setup.taxIdGeneric')} (${t('setup.addressOptional')})`
 )
 const taxIdWarning = computed(() =>
   isSpain.value && form.taxId.trim() && !isValidSpanishTaxId(form.taxId)
@@ -161,8 +161,7 @@ function validateClinic(): boolean {
   errors.clinicName = form.clinicName.trim() ? '' : t('setup.clinicNameRequired')
   errors.country = form.country ? '' : t('setup.countryRequired')
   const taxId = form.taxId.trim()
-  if (!taxId) errors.taxId = t('setup.taxIdRequired')
-  else if (preset.value?.tax_id_pattern
+  if (taxId && preset.value?.tax_id_pattern
     && !new RegExp(preset.value.tax_id_pattern).test(taxId.toUpperCase().replace(/[\s\-.]/g, ''))) {
     errors.taxId = t('setup.taxIdFormat', { example: preset.value.tax_id_example ?? '' })
   } else errors.taxId = ''
@@ -194,7 +193,7 @@ async function onSubmit() {
       admin_password: form.password,
       admin_is_professional: form.isProfessional,
       clinic_name: form.clinicName.trim(),
-      clinic_tax_id: form.taxId.trim(),
+      clinic_tax_id: form.taxId.trim() || undefined,
       clinic_street: form.street.trim() || undefined,
       clinic_postal_code: form.postalCode.trim() || undefined,
       clinic_city: form.city.trim() || undefined,

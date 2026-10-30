@@ -178,7 +178,7 @@ async def setup(
         )
 
     preset = get_preset(data.country)
-    if data.country and not tax_id_matches(preset, data.clinic_tax_id):
+    if data.country and data.clinic_tax_id and not tax_id_matches(preset, data.clinic_tax_id):
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=f"Invalid tax id format for {data.country} ({preset.tax_id_label})",
