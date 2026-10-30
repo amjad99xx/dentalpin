@@ -693,7 +693,7 @@ const allAppointmentsWithDayIndex = computed(() => {
       ref="calendarRef"
       class="flex-1 overflow-auto ring-1 ring-[var(--color-border)] rounded-token-lg"
     >
-      <div class="min-w-[800px]">
+      <div class="min-w-[640px]">
         <!-- Day headers -->
         <div class="grid grid-cols-8 border-b border-default bg-surface-muted sticky top-0 z-10">
           <div class="p-2 text-center text-caption text-subtle border-e border-subtle">

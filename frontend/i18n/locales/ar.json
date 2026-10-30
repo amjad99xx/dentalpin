@@ -1,6 +1,6 @@
 {
   "app": {
-    "name": "DentalPin",
+    "name": "Dental Heights",
     "tagline": "إدارة عيادات الأسنان"
   },
   "demo": {
@@ -79,7 +79,7 @@
     "next": "التالي",
     "back": "رجوع",
     "submit": "إنشاء عيادتي",
-    "success": "كل شيء جاهز! مرحبًا بك في DentalPin",
+    "success": "كل شيء جاهز! مرحبًا بك في Dental Heights",
     "firstNameRequired": "أدخل الاسم الأول",
     "lastNameRequired": "أدخل اسم العائلة",
     "emailRequired": "أدخل البريد الإلكتروني",
@@ -175,6 +175,25 @@
     "archiveDescription": "سيؤدي هذا الإجراء إلى إخفاء المريض من نتائج البحث. لن تُحذف مواعيده القائمة.",
     "cancel": "إلغاء",
     "archive": "أرشفة",
+    "bulk": {
+      "ariaLabel": "إجراءات جماعية",
+      "select": "تحديد",
+      "cancel": "إلغاء التحديد",
+      "selectedCount": "تم تحديد {count}",
+      "deleteAction": "حذف",
+      "deleteConfirmTitle": "حذف {count} من المرضى؟",
+      "deleteConfirmDescription": "سيؤدي هذا إلى أرشفة المرضى المحددين — يتم إخفاؤهم من نتائج البحث، لكن سجلاتهم وتاريخ مواعيدهم يُحفظ ولا يُحذف نهائيًا.",
+      "deleteAllSuccess": "تمت أرشفة {count} من المرضى",
+      "deletePartial": "تمت أرشفة {sent}، وفشل {failed}",
+      "whatsappAction": "واتساب",
+      "whatsappTitle": "إرسال رسالة واتساب",
+      "whatsappSubtitle": "إلى {count} من المرضى المحددين",
+      "whatsappPlaceholder": "اكتب رسالتك…",
+      "whatsappGenericFailure": "تعذر الإرسال",
+      "whatsappAllSuccess": "تم إرسال الرسالة إلى {count} من المرضى",
+      "whatsappPartial": "تم الإرسال إلى {sent}، وفشل {failed}",
+      "send": "إرسال"
+    },
     "dangerZone": {
       "title": "منطقة الخطر",
       "archiveHelp": "أرشِف المريض لإخفائه من البحث. تبقى المواعيد والسجل الطبي محفوظة."
@@ -995,7 +1014,7 @@
       "afternoon": "مساء الخير",
       "evening": "مساء الخير"
     },
-    "welcome": "مرحبًا بك في DentalPin",
+    "welcome": "مرحبًا بك في Dental Heights",
     "welcomeMessage": "ابدأ بإنشاء أول مريض.",
     "quickActions": {
       "newAppointment": "موعد جديد",
@@ -1296,14 +1315,14 @@
       "copy": "نسخ الرابط",
       "copied": "تم نسخ الرابط",
       "whatsapp": "إرسال عبر واتساب",
-      "shareText": "مرحبًا {name}، هذا رابط وصولك إلى DentalPin. افتحه واختر كلمة مرورك: {url}",
+      "shareText": "مرحبًا {name}، هذا رابط وصولك إلى Dental Heights. افتحه واختر كلمة مرورك: {url}",
       "secretNote": "تعامل معه ككلمة مرور: أي شخص لديه الرابط يستطيع الدخول إلى هذا الحساب.",
       "passwordOptionalHelp": "اتركه فارغًا لتوليد رابط وصول يمكنك إرساله عبر واتساب أو البريد الإلكتروني.",
       "passwordOptionalPlaceholder": "اختياري",
       "createAndLink": "إنشاء وتوليد الرابط",
       "rowAction": "رابط الوصول",
       "setPasswordTitle": "اختر كلمة مرورك",
-      "setPasswordSubtitle": "تمت دعوتك إلى DentalPin. أنشئ كلمة مرورك لتسجيل الدخول.",
+      "setPasswordSubtitle": "تمت دعوتك إلى Dental Heights. أنشئ كلمة مرورك لتسجيل الدخول.",
       "setPasswordSubmit": "حفظ وتسجيل الدخول",
       "invalidToken": "هذا الرابط غير صالح أو استُخدم مسبقًا. اطلب من مسؤول عيادتك رابطًا جديدًا."
     }

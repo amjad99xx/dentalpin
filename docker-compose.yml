@@ -99,7 +99,7 @@ services:
       # full-page reloads abort Playwright navigation (#260).
       NUXT_DEVTOOLS: ${NUXT_DEVTOOLS:-true}
     ports:
-      - "3000:3000"
+      - "3001:3000"
     depends_on:
       backend:
         condition: service_started

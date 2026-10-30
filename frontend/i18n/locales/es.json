@@ -175,6 +175,25 @@
     "archiveDescription": "Esta acción ocultará al paciente de las búsquedas. Las citas existentes no se eliminarán.",
     "cancel": "Cancelar",
     "archive": "Archivar",
+    "bulk": {
+      "ariaLabel": "Acciones masivas",
+      "select": "Seleccionar",
+      "cancel": "Cancelar selección",
+      "selectedCount": "{count} seleccionados",
+      "deleteAction": "Eliminar",
+      "deleteConfirmTitle": "¿Eliminar {count} pacientes?",
+      "deleteConfirmDescription": "Esto archivará a los pacientes seleccionados: se ocultan de las búsquedas, pero su historial y citas se conservan, no se borran.",
+      "deleteAllSuccess": "{count} pacientes archivados",
+      "deletePartial": "{sent} archivados, {failed} fallidos",
+      "whatsappAction": "WhatsApp",
+      "whatsappTitle": "Enviar mensaje de WhatsApp",
+      "whatsappSubtitle": "A {count} pacientes seleccionados",
+      "whatsappPlaceholder": "Escribe tu mensaje…",
+      "whatsappGenericFailure": "No se pudo enviar",
+      "whatsappAllSuccess": "Mensaje enviado a {count} pacientes",
+      "whatsappPartial": "{sent} enviados, {failed} fallidos",
+      "send": "Enviar"
+    },
     "dangerZone": {
       "title": "Zona peligrosa",
       "archiveHelp": "Archiva al paciente para ocultarlo de búsquedas. Las citas e historial se conservan."

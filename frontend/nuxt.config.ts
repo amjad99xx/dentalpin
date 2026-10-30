@@ -80,9 +80,9 @@ export default defineNuxtConfig({
   },
   app: {
     head: {
-      title: 'DentalPin',
+      title: 'Dental Heights',
       link: [
-        { rel: 'icon', type: 'image/svg+xml', href: '/favicon.svg' }
+        { rel: 'icon', type: 'image/png', href: '/dh-icon.png' }
       ]
     }
   },

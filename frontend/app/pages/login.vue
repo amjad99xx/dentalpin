@@ -106,14 +106,14 @@ watch(() => formState.password, () => {
     <!-- Brand -->
     <div class="text-center mb-6">
       <img
-        src="/logo-icon.svg"
-        alt="DentalPin"
+        src="/dh-icon.png"
+        alt="Dental Heights"
         width="56"
         height="56"
-        class="mx-auto mb-3"
+        class="mx-auto mb-3 object-contain"
       >
       <h1 class="text-h1 text-default">
-        DentalPin
+        Dental Heights
       </h1>
       <p class="text-caption text-muted mt-1">
         {{ t('app.tagline') }}
@@ -189,7 +189,7 @@ watch(() => formState.password, () => {
     <DemoCredentialsHint />
 
     <p class="text-center text-caption text-subtle mt-6">
-      &copy; {{ new Date().getFullYear() }} DentalPin
+      &copy; {{ new Date().getFullYear() }} Dental Heights
     </p>
   </div>
 </template>

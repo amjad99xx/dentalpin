@@ -2,14 +2,17 @@
 import type { Appointment } from '~~/app/types'
 import { defineAsyncComponent } from 'vue'
 import { formatLocalDate } from '../../utils/date'
+import AppointmentMobileDayView from '../../components/clinical/AppointmentMobileDayView.vue'
 
 // Mode-specific scheduler views are heavy (drag grids, overlap math, mobile
 // timeline). Lazy-load each so the initial /agenda payload only ships the
-// active mode for the current viewport.
+// active mode for the current viewport. AppointmentMobileDayView is loaded
+// eagerly (not async) — see #603: resolving it alongside the other async
+// views produced a corrupted first paint on mobile (the header's static
+// hoisted nodes picked up a sibling view's classes/scopeId).
 const AppointmentCalendar = defineAsyncComponent(() => import('../../components/clinical/AppointmentCalendar.vue'))
 const AppointmentDailyView = defineAsyncComponent(() => import('../../components/clinical/AppointmentDailyView.vue'))
 const AppointmentKanbanView = defineAsyncComponent(() => import('../../components/clinical/AppointmentKanbanView.vue'))
-const AppointmentMobileDayView = defineAsyncComponent(() => import('../../components/clinical/AppointmentMobileDayView.vue'))
 
 const { t } = useI18n()
 const toast = useToast()
@@ -695,6 +698,18 @@ watch(isMobile, async (mobile) => {
 
     <!-- Calendar -->
     <div class="flex-1 min-h-0 min-w-0">
+      <!--
+        ClientOnly is load-bearing (#603): `isMobile` is SSR-false (no
+        window), so the server always renders a desktop view. The client
+        then immediately re-evaluates `isMobile` and patches to a
+        different view in the same tick hydration finishes — Vue's
+        hydrate-then-patch reused the desktop view's static hoisted
+        nodes (classes, scopeId) under the mobile view's elements,
+        corrupting the first paint on phones. Client-only rendering
+        picks the right branch from the start, so there is nothing to
+        patch away.
+      -->
+      <ClientOnly>
       <!-- Load error — never render a blank calendar that reads as a
            free week (issue #101). The banner replaces the grid until a
            retry succeeds. -->
@@ -715,6 +730,7 @@ watch(isMobile, async (mobile) => {
       <!-- Mobile day view (replaces all desktop views on <md) -->
       <AppointmentMobileDayView
         v-else-if="isMobile"
+        key="mobile-day"
         :appointments="filteredAppointments"
         :professionals="professionalsWithColors"
         :cabinets="clinic.cabinets.value"
@@ -731,6 +747,7 @@ watch(isMobile, async (mobile) => {
       <!-- Weekly view -->
       <AppointmentCalendar
         v-else-if="viewMode === 'week'"
+        key="week"
         :appointments="filteredAppointments"
         :cabinets="clinic.cabinets.value"
         :professionals="professionalsWithColors"
@@ -749,6 +766,7 @@ watch(isMobile, async (mobile) => {
       <!-- Daily view -->
       <AppointmentDailyView
         v-else-if="viewMode === 'day'"
+        key="day"
         :appointments="filteredAppointments"
         :professionals="professionalsWithColors"
         :current-date="currentDate"
@@ -766,6 +784,7 @@ watch(isMobile, async (mobile) => {
       <!-- Kanban view -->
       <AppointmentKanbanView
         v-else
+        key="kanban"
         :appointments="filteredAppointments"
         :cabinets="clinic.cabinets.value"
         :professionals="professionalsWithColors"
@@ -775,6 +794,16 @@ watch(isMobile, async (mobile) => {
         @date-change="handleDateChange"
         @professional-filter="handleProfessionalFilter"
       />
+      <template #fallback>
+        <div class="flex items-center justify-center py-12">
+          <UIcon
+            name="i-lucide-loader-2"
+            class="w-8 h-8 animate-spin"
+            :style="{ color: 'var(--color-primary)' }"
+          />
+        </div>
+      </template>
+      </ClientOnly>
     </div>
 
     <!-- Appointment Modal -->

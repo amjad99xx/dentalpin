@@ -134,20 +134,20 @@ function isActive(to: string): boolean {
         <NuxtLink
           to="/"
           class="flex items-center gap-2 overflow-hidden"
-          aria-label="DentalPin"
+          aria-label="Dental Heights"
         >
           <img
-            src="/logo-icon.svg"
+            src="/dh-icon.png"
             alt=""
             width="32"
             height="32"
-            class="shrink-0"
+            class="shrink-0 object-contain"
           >
           <span
             v-if="!isSidebarCollapsed"
             class="text-h2 text-default truncate"
           >
-            DentalPin
+            Dental Heights
           </span>
         </NuxtLink>
       </div>
@@ -263,17 +263,17 @@ function isActive(to: string): boolean {
             <NuxtLink
               to="/"
               class="flex items-center gap-2 overflow-hidden"
-              aria-label="DentalPin"
+              aria-label="Dental Heights"
               @click="mobileNavOpen = false"
             >
               <img
-                src="/logo-icon.svg"
+                src="/dh-icon.png"
                 alt=""
                 width="32"
                 height="32"
-                class="shrink-0"
+                class="shrink-0 object-contain"
               >
-              <span class="text-h2 text-default truncate">DentalPin</span>
+              <span class="text-h2 text-default truncate">Dental Heights</span>
             </NuxtLink>
             <UButton
               variant="ghost"

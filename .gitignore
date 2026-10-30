@@ -67,3 +67,6 @@ proyecto_open_source_dental.docx
 *.dpmf
 test-results/
 /.vs
+
+# Local database dumps — may contain patient data, never commit
+/backups/

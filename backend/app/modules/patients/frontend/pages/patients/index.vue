@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import type { Patient, PatientCreate, PaginatedResponse, ApiResponse } from '~~/app/types'
-import { errorMessage } from '~~/app/utils/error'
+import { errorMessage, errorDetail } from '~~/app/utils/error'
 import { PATIENT_STATUS_ROLE, type PatientStatus } from '~~/app/config/severity'
 import { PERMISSIONS } from '~~/app/config/permissions'
 
@@ -254,6 +254,161 @@ function patientCity(p: Patient): string {
   const addr = (p as Patient & { address?: { city?: string } }).address
   return addr?.city || ''
 }
+
+// --- Bulk selection -------------------------------------------------
+// Keyed by id (not just a Set of ids) so a selection made on one page
+// survives navigating to another page — the fetcher replaces `patients`
+// wholesale on every page/filter change, so a Set-of-ids alone would
+// silently lose the patient data needed to show names / call the
+// per-patient endpoints for rows no longer in the current page.
+const selectionMode = ref(false)
+const selectedPatients = ref<Map<string, Patient>>(new Map())
+
+const selectedCount = computed(() => selectedPatients.value.size)
+const selectedList = computed(() => Array.from(selectedPatients.value.values()))
+
+function enterSelectionMode() {
+  selectionMode.value = true
+}
+
+function exitSelectionMode() {
+  selectionMode.value = false
+  selectedPatients.value = new Map()
+}
+
+function toggleSelect(patient: Patient) {
+  const next = new Map(selectedPatients.value)
+  if (next.has(patient.id)) next.delete(patient.id)
+  else next.set(patient.id, patient)
+  selectedPatients.value = next
+}
+
+interface BulkActionResult {
+  id: string
+  name: string
+  success: boolean
+  reason?: string
+}
+
+// WhatsApp is only offered when this clinic actually has a working
+// channel adapter configured (whatsapp_kapso installed + connected) —
+// same check ConversationThread.vue uses to hide its reply box. Never
+// show a button for a channel that would just 409 on every send.
+const whatsappAvailable = ref(false)
+
+async function refreshWhatsappAvailability() {
+  if (!can(PERMISSIONS.notifications.send)) {
+    whatsappAvailable.value = false
+    return
+  }
+  try {
+    const res = await api.get<ApiResponse<{ available: string[] }>>('/api/v1/notifications/channels')
+    whatsappAvailable.value = res.data.available.includes('whatsapp')
+  } catch {
+    whatsappAvailable.value = false
+  }
+}
+
+onMounted(refreshWhatsappAvailability)
+
+// --- Bulk delete (archive) -------------------------------------------
+// Mirrors the single-patient flow on /patients/[id]: DELETE soft-archives
+// (status -> archived), it never hard-deletes (patients module contract).
+const isBulkDeleteModalOpen = ref(false)
+const isBulkDeleting = ref(false)
+const bulkDeleteResults = ref<BulkActionResult[] | null>(null)
+
+function openBulkDelete() {
+  bulkDeleteResults.value = null
+  isBulkDeleteModalOpen.value = true
+}
+
+async function confirmBulkDelete() {
+  isBulkDeleting.value = true
+  const targets = selectedList.value
+  const settled = await Promise.allSettled(
+    targets.map(p => api.del(`/api/v1/patients/${p.id}`, { errorToast: false }))
+  )
+  const results = settled.map((r, i) => ({
+    id: targets[i].id,
+    name: `${targets[i].last_name}, ${targets[i].first_name}`,
+    success: r.status === 'fulfilled',
+    reason: r.status === 'rejected' ? errorMessage(r.reason, t('common.serverError')) : undefined
+  }))
+  bulkDeleteResults.value = results
+  isBulkDeleting.value = false
+
+  const failed = results.filter(r => !r.success).length
+  toast.add({
+    title: failed ? t('common.error') : t('common.success'),
+    description: failed
+      ? t('patients.bulk.deletePartial', { sent: results.length - failed, failed })
+      : t('patients.bulk.deleteAllSuccess', { count: results.length }),
+    color: failed ? (failed === results.length ? 'error' : 'warning') : 'success'
+  })
+
+  await refresh()
+  if (!failed) {
+    isBulkDeleteModalOpen.value = false
+    exitSelectionMode()
+  }
+}
+
+// --- Bulk WhatsApp -----------------------------------------------------
+// Same endpoint the patient-detail conversation thread uses
+// (notifications.conversations reply) — a free-text send inside the 24h
+// session window. Patients outside that window, without a phone, or
+// opted out via do_not_contact simply come back as a per-row failure
+// with the server's own reason; nothing is pre-filtered or guessed here.
+const isBulkWhatsappModalOpen = ref(false)
+const isBulkWhatsappSending = ref(false)
+const bulkWhatsappBody = ref('')
+const bulkWhatsappResults = ref<BulkActionResult[] | null>(null)
+
+function openBulkWhatsapp() {
+  bulkWhatsappBody.value = ''
+  bulkWhatsappResults.value = null
+  isBulkWhatsappModalOpen.value = true
+}
+
+async function sendBulkWhatsapp() {
+  const body = bulkWhatsappBody.value.trim()
+  if (!body) return
+
+  isBulkWhatsappSending.value = true
+  const targets = selectedList.value
+  const settled = await Promise.allSettled(
+    targets.map(p =>
+      api.post(
+        `/api/v1/notifications/conversations/${p.id}/reply`,
+        { channel: 'whatsapp', body },
+        { errorToast: false }
+      )
+    )
+  )
+  const results = settled.map((r, i) => ({
+    id: targets[i].id,
+    name: `${targets[i].last_name}, ${targets[i].first_name}`,
+    success: r.status === 'fulfilled',
+    reason: r.status === 'rejected' ? (errorDetail(r.reason) ?? t('patients.bulk.whatsappGenericFailure')) : undefined
+  }))
+  bulkWhatsappResults.value = results
+  isBulkWhatsappSending.value = false
+
+  const failed = results.filter(r => !r.success).length
+  toast.add({
+    title: failed ? t('common.error') : t('common.success'),
+    description: failed
+      ? t('patients.bulk.whatsappPartial', { sent: results.length - failed, failed })
+      : t('patients.bulk.whatsappAllSuccess', { count: results.length }),
+    color: failed ? (failed === results.length ? 'error' : 'warning') : 'success'
+  })
+
+  if (!failed) {
+    isBulkWhatsappModalOpen.value = false
+    exitSelectionMode()
+  }
+}
 </script>
 
 <template>
@@ -270,6 +425,24 @@ function patientCity(p: Patient): string {
       @update:page="(v) => (page = v)"
     >
       <template #actions>
+        <UButton
+          v-if="!selectionMode"
+          variant="outline"
+          color="neutral"
+          icon="i-lucide-list-checks"
+          @click="enterSelectionMode"
+        >
+          {{ t('patients.bulk.select') }}
+        </UButton>
+        <UButton
+          v-else
+          variant="outline"
+          color="neutral"
+          icon="i-lucide-x"
+          @click="exitSelectionMode"
+        >
+          {{ t('patients.bulk.cancel') }}
+        </UButton>
         <UButton
           color="primary"
           variant="soft"
@@ -352,9 +525,17 @@ function patientCity(p: Patient): string {
         <DataListItem
           v-for="patient in patients"
           :key="patient.id"
-          :to="`/patients/${patient.id}`"
+          :to="selectionMode ? undefined : `/patients/${patient.id}`"
+          @click="selectionMode && toggleSelect(patient)"
         >
           <template #row>
+            <span
+              v-if="selectionMode"
+              class="shrink-0"
+              @click.stop="toggleSelect(patient)"
+            >
+              <UCheckbox :model-value="selectedPatients.has(patient.id)" />
+            </span>
             <UAvatar
               :alt="patient.first_name"
               size="sm"
@@ -391,6 +572,13 @@ function patientCity(p: Patient): string {
 
           <template #card>
             <div class="flex items-center gap-3">
+              <span
+                v-if="selectionMode"
+                class="shrink-0"
+                @click.stop="toggleSelect(patient)"
+              >
+                <UCheckbox :model-value="selectedPatients.has(patient.id)" />
+              </span>
               <UAvatar
                 :alt="patient.first_name"
                 size="md"
@@ -531,6 +719,171 @@ function patientCity(p: Patient): string {
                 @click="createPatient"
               >
                 {{ t('common.save') }}
+              </UButton>
+            </div>
+          </template>
+        </UCard>
+      </template>
+    </UModal>
+
+    <!-- Bulk action bar -->
+    <PatientBulkActionBar
+      v-if="selectionMode && selectedCount > 0"
+      :count="selectedCount"
+      :can-delete="can(PERMISSIONS.patients.write)"
+      :can-whatsapp="whatsappAvailable"
+      @cancel="exitSelectionMode"
+      @delete="openBulkDelete"
+      @whatsapp="openBulkWhatsapp"
+    />
+
+    <!-- Bulk delete (archive) confirmation -->
+    <UModal v-model:open="isBulkDeleteModalOpen">
+      <template #content>
+        <UCard>
+          <template #header>
+            <h2 class="text-h1 text-default">
+              {{ t('patients.bulk.deleteConfirmTitle', { count: selectedCount }) }}
+            </h2>
+          </template>
+
+          <div v-if="!bulkDeleteResults">
+            <p class="text-body text-muted">
+              {{ t('patients.bulk.deleteConfirmDescription') }}
+            </p>
+            <ul class="mt-3 text-caption text-subtle space-y-0.5 max-h-40 overflow-y-auto">
+              <li
+                v-for="p in selectedList"
+                :key="p.id"
+              >
+                {{ p.last_name }}, {{ p.first_name }}
+              </li>
+            </ul>
+          </div>
+          <ul
+            v-else
+            class="space-y-1 max-h-60 overflow-y-auto"
+          >
+            <li
+              v-for="r in bulkDeleteResults"
+              :key="r.id"
+              class="flex items-center gap-2 text-caption"
+            >
+              <UIcon
+                :name="r.success ? 'i-lucide-check-circle' : 'i-lucide-x-circle'"
+                :class="r.success ? 'text-success-accent' : 'text-danger-accent'"
+                class="w-4 h-4 shrink-0"
+              />
+              <span class="text-default">{{ r.name }}</span>
+              <span
+                v-if="r.reason"
+                class="text-subtle truncate"
+              >— {{ r.reason }}</span>
+            </li>
+          </ul>
+
+          <template #footer>
+            <div class="flex justify-end gap-3">
+              <template v-if="!bulkDeleteResults">
+                <UButton
+                  variant="outline"
+                  color="neutral"
+                  @click="isBulkDeleteModalOpen = false"
+                >
+                  {{ t('common.cancel') }}
+                </UButton>
+                <UButton
+                  color="error"
+                  :loading="isBulkDeleting"
+                  @click="confirmBulkDelete"
+                >
+                  {{ t('patients.bulk.deleteAction') }}
+                </UButton>
+              </template>
+              <UButton
+                v-else
+                color="neutral"
+                variant="outline"
+                @click="isBulkDeleteModalOpen = false; exitSelectionMode()"
+              >
+                {{ t('common.close', 'Cerrar') }}
+              </UButton>
+            </div>
+          </template>
+        </UCard>
+      </template>
+    </UModal>
+
+    <!-- Bulk WhatsApp compose -->
+    <UModal v-model:open="isBulkWhatsappModalOpen">
+      <template #content>
+        <UCard>
+          <template #header>
+            <h2 class="text-h1 text-default">
+              {{ t('patients.bulk.whatsappTitle') }}
+            </h2>
+          </template>
+
+          <div v-if="!bulkWhatsappResults">
+            <p class="text-caption text-subtle mb-3">
+              {{ t('patients.bulk.whatsappSubtitle', { count: selectedCount }) }}
+            </p>
+            <UTextarea
+              v-model="bulkWhatsappBody"
+              :placeholder="t('patients.bulk.whatsappPlaceholder')"
+              :rows="4"
+              class="w-full"
+              autofocus
+            />
+          </div>
+          <ul
+            v-else
+            class="space-y-1 max-h-60 overflow-y-auto"
+          >
+            <li
+              v-for="r in bulkWhatsappResults"
+              :key="r.id"
+              class="flex items-center gap-2 text-caption"
+            >
+              <UIcon
+                :name="r.success ? 'i-lucide-check-circle' : 'i-lucide-x-circle'"
+                :class="r.success ? 'text-success-accent' : 'text-danger-accent'"
+                class="w-4 h-4 shrink-0"
+              />
+              <span class="text-default">{{ r.name }}</span>
+              <span
+                v-if="r.reason"
+                class="text-subtle truncate"
+              >— {{ r.reason }}</span>
+            </li>
+          </ul>
+
+          <template #footer>
+            <div class="flex justify-end gap-3">
+              <template v-if="!bulkWhatsappResults">
+                <UButton
+                  variant="outline"
+                  color="neutral"
+                  @click="isBulkWhatsappModalOpen = false"
+                >
+                  {{ t('common.cancel') }}
+                </UButton>
+                <UButton
+                  color="primary"
+                  :loading="isBulkWhatsappSending"
+                  :disabled="!bulkWhatsappBody.trim()"
+                  @click="sendBulkWhatsapp"
+                >
+                  {{ t('patients.bulk.send') }}
+                </UButton>
+              </template>
+              <UButton
+                v-else
+                color="neutral"
+                variant="outline"
+                @click="isBulkWhatsappModalOpen = false; exitSelectionMode()"
+              >
+                {{ t('common.close', 'Cerrar') }}
               </UButton>
             </div>
           </template>
