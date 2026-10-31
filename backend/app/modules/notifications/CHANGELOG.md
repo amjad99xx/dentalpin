@@ -20,6 +20,40 @@
   against the stored value (and against a new password being set)
   before invalidating verification.
 
+- fix: turning a patient's email off no longer blocks their WhatsApp,
+  SMS and push notifications. The consent gate read `email_enabled` as
+  a global opt-out (a leftover from when email was the only channel), so
+  every unforced send (`appointment_confirmation`,
+  `appointment_cancelled`, `welcome`, `budget_accepted`,
+  `budget_reminder`, `recall_reminder`) was skipped as `patient_opted_out` for a patient who had only declined
+  email. Each channel toggle now opts out of its own channel, as the
+  patient card says. With no other channel left, the skip reads
+  `no_viable_channel`, the same as a forced send.
+
+- fix(#683): a patient's per-type opt-out now holds under `force_send`.
+  The gateway checked it only inside the non-forced branch, and the
+  appointment-reminder cron, the manual reminder and the staff budget and
+  invoice sends all pass `force_send=True`, so an `appointment_reminder`,
+  `budget_sent` or `invoice_sent` opt-out never applied. Like
+  `do_not_contact` and the channel toggles, it now blocks every send;
+  `force_send` still bypasses the clinic's `enabled` / `auto_send` gate.
+- feat(#683): the patient card's notification preferences list one switch
+  per notification type under the channel switches, from the same list
+  the clinic settings page renders. A switch writes one key (the PUT
+  merges). A backend test keeps that list equal to `NotificationType`.
+
+- fix(#683): a patient's per-type opt-out is keyed by a closed
+  vocabulary. `NotificationType` (`models.py`) lists the nine types the
+  product enqueues; `PUT /preferences/patient/{id}` answers 422 for any
+  other key, where a misspelt one used to return 200 and never block
+  anything (an absent key reads as consent). The PUT merges
+  `preferences` into the stored dict instead of replacing it, and the
+  default record now carries all nine types (`budget_reminder`,
+  `recall_reminder` and `invoice_sent` had no key). A test keeps every
+  `notification_type="..."` call site and the clinic defaults inside the
+  vocabulary.
+- fix(#768): every `SELECT … FOR UPDATE` in this module now re-reads the locked row (`populate_existing`). A locking select on a row already in the session returned the cached instance with its pre-lock values. A guard test now enforces this across the tree.
+
 - fix(#765): `GET`/`PUT /preferences/patient/{id}` and
   `POST /conversations/{id}/reply` answer 404 unless the patient is the
   caller's clinic's. An unknown id hit the patients FK
