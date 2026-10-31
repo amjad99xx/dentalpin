@@ -214,14 +214,23 @@ class EmailService:
 
         # Try to get clinic-specific provider
         provider = self.provider  # Default to global
+        using_clinic_provider = False
         if db and clinic_id:
             clinic_provider = await self.create_provider_for_clinic(db, clinic_id)
             if clinic_provider:
                 provider = clinic_provider
+                using_clinic_provider = True
                 logger.info(f"Using clinic-specific email provider for clinic {clinic_id}")
 
-        # Apply default from address if not set
-        if not message.from_email:
+        # Apply the GLOBAL default from address only when actually using the
+        # global provider. A clinic's own SMTP mailbox usually can't send as
+        # the global default sender (e.g. it isn't a mailbox that exists on
+        # the clinic's mail server), so with a clinic override the message
+        # must fall through to the provider's own default_from_email/name
+        # instead — stamping it here unconditionally overrode that and the
+        # clinic's server rejected the envelope sender as not owned by the
+        # authenticated mailbox.
+        if not message.from_email and not using_clinic_provider:
             message.from_email = settings.EMAIL_FROM_ADDRESS
             message.from_name = message.from_name or settings.EMAIL_FROM_NAME
 

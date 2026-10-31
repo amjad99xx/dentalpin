@@ -404,6 +404,57 @@ async def test_test_email_endpoint_uses_clinic_smtp_override(
 
 
 @pytest.mark.asyncio
+async def test_send_with_clinic_provider_does_not_stamp_the_global_from_address(
+    db_session: AsyncSession, test_clinic, monkeypatch
+):
+    """A clinic's own SMTP mailbox usually can't send as the global
+    EMAIL_FROM_ADDRESS default — it typically isn't a mailbox that
+    exists on the clinic's own mail server. email_service.send() used
+    to stamp the global default onto every message whose caller left
+    from_email unset, even when a clinic-specific provider was just
+    resolved — bypassing that provider's own correct default_from_email
+    and getting the envelope sender rejected by the real mail server
+    (e.g. "553 ... Sender address rejected: not owned by user ...").
+    """
+    from app.config import settings as app_settings
+    from app.core.email.providers.base import EmailMessage, EmailResult, EmailStatus
+    from app.core.email.providers.smtp import SMTPProvider
+    from app.core.email.service import EmailService
+
+    monkeypatch.setattr(app_settings, "EMAIL_FROM_ADDRESS", "noreply@global-default.example")
+
+    db_session.add(
+        ClinicSmtpSettings(
+            clinic_id=test_clinic.id,
+            provider="smtp",
+            host="mail.example.com",
+            port=465,
+            username="info@dental-heights.com",
+            use_tls=False,
+            use_ssl=True,
+            from_email="info@dental-heights.com",
+            from_name="Dental Heights",
+            is_active=True,
+        )
+    )
+    await db_session.commit()
+
+    captured: dict = {}
+
+    async def fake_send(self, message):
+        captured["from_email"] = message.from_email
+        return EmailResult(status=EmailStatus.SUCCESS, provider="smtp", message_id="fake")
+
+    monkeypatch.setattr(SMTPProvider, "send", fake_send)
+
+    message = EmailMessage(to_email="patient@example.com", subject="Hola", body_html="<p>Hola</p>")
+    result = await EmailService().send(message, db=db_session, clinic_id=test_clinic.id)
+
+    assert result.is_success
+    assert captured["from_email"] != "noreply@global-default.example"
+
+
+@pytest.mark.asyncio
 async def test_update_smtp_settings_keeps_verification_when_unchanged(
     db_session: AsyncSession, test_clinic
 ):
