@@ -51,6 +51,10 @@ services:
       # Real default, not ${X:-}: an empty value fails pydantic bool parsing
       # at boot (#604).
       EMAIL_SMTP_TLS: ${EMAIL_SMTP_TLS:-true}
+      # Implicit TLS (port 465) instead of STARTTLS — set EMAIL_SMTP_SSL=true
+      # and EMAIL_SMTP_PORT=465 together; leave both at their defaults for
+      # STARTTLS on 587.
+      EMAIL_SMTP_SSL: ${EMAIL_SMTP_SSL:-false}
       EMAIL_SMTP_USER: ${EMAIL_SMTP_USER:-}
       EMAIL_SMTP_PASSWORD: ${EMAIL_SMTP_PASSWORD:-}
       EMAIL_FROM_ADDRESS: ${EMAIL_FROM_ADDRESS:-noreply@dentalpin.com}

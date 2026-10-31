@@ -1,6 +1,7 @@
 """Tests for the notifications module."""
 
 import asyncio
+from datetime import UTC, datetime
 from uuid import uuid4
 
 import pytest
@@ -18,6 +19,7 @@ from app.modules.notifications.channels import (
     channel_registry,
 )
 from app.modules.notifications.models import (
+    ClinicSmtpSettings,
     NotificationPreference,
     NotificationTemplate,
 )
@@ -244,6 +246,95 @@ async def test_test_email_endpoint(client: AsyncClient, auth_headers: dict, test
     # In test mode, should use console provider
     assert data["provider"] == "console"
     assert data["success"] is True
+
+
+@pytest.mark.asyncio
+async def test_test_email_endpoint_uses_clinic_smtp_override(
+    client: AsyncClient,
+    auth_headers: dict,
+    db_session: AsyncSession,
+    test_clinic,
+    monkeypatch,
+):
+    """The top-level "Test connection" button must honour the clinic's
+    own SMTP config, not just the global default. It used to call
+    ``email_service.send()`` without ``clinic_id``, so a clinic with a
+    correctly configured and verified SMTP override still reported the
+    global provider's state instead of its own.
+    """
+    from app.core.email.providers.base import EmailResult, EmailStatus
+    from app.core.email.providers.smtp import SMTPProvider
+
+    db_session.add(
+        ClinicSmtpSettings(
+            clinic_id=test_clinic.id,
+            provider="smtp",
+            host="mail.example.com",
+            port=465,
+            username="user@example.com",
+            use_tls=False,
+            use_ssl=True,
+            from_email="user@example.com",
+            is_active=True,
+        )
+    )
+    await db_session.commit()
+
+    async def fake_send(self, message):  # noqa: ARG001
+        return EmailResult(status=EmailStatus.SUCCESS, provider="smtp", message_id="fake")
+
+    monkeypatch.setattr(SMTPProvider, "send", fake_send)
+
+    response = await client.post(
+        "/api/v1/notifications/test",
+        json={"to_email": "test@example.com"},
+        headers=auth_headers,
+    )
+
+    assert response.status_code == 200
+    data = response.json()["data"]
+    assert data["provider"] == "smtp"
+    assert data["success"] is True
+
+
+@pytest.mark.asyncio
+async def test_update_smtp_settings_keeps_verification_when_unchanged(
+    db_session: AsyncSession, test_clinic
+):
+    """Saving with identical connection fields must not undo a passed
+    test. The frontend always resends host/port/username/use_tls/
+    use_ssl on every save, so the reset-on-change check has to compare
+    values, not just key presence — otherwise a just-verified config
+    flips back to unverified with nothing actually different.
+    """
+    base_data = {
+        "provider": "smtp",
+        "host": "mail.example.com",
+        "port": 465,
+        "username": "user@example.com",
+        "use_tls": False,
+        "use_ssl": True,
+        "from_email": "user@example.com",
+        "from_name": "Test Clinic",
+    }
+    settings = await NotificationService.update_smtp_settings(
+        db_session, test_clinic.id, {**base_data, "password": "s3cret-pass"}
+    )
+    settings.is_verified = True
+    settings.last_verified_at = datetime.now(UTC)
+    await db_session.commit()
+
+    unchanged = await NotificationService.update_smtp_settings(
+        db_session, test_clinic.id, base_data
+    )
+    assert unchanged.is_verified is True
+    assert unchanged.last_verified_at is not None
+
+    changed = await NotificationService.update_smtp_settings(
+        db_session, test_clinic.id, {"port": 587, "use_tls": True, "use_ssl": False}
+    )
+    assert changed.is_verified is False
+    assert changed.last_verified_at is None
 
 
 @pytest.mark.asyncio

@@ -790,12 +790,19 @@ async def test_email_connection(
     data: TestEmailRequest,
     ctx: Annotated[ClinicContext, Depends(get_clinic_context)],
     _: Annotated[None, Depends(require_permission("notifications.settings.write"))],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ) -> ApiResponse[TestEmailResponse]:
     """Send a test email to verify email configuration.
 
+    Resolves the clinic's own SMTP override the same way real
+    notification sends do (``create_provider_for_clinic``), falling back
+    to the global provider only when the clinic has none configured —
+    otherwise this always tested the global default even when the
+    clinic's own SMTP was correctly configured and verified.
+
     Requires admin permissions.
     """
-    result = await NotificationService.test_email_connection(data.to_email)
+    result = await NotificationService.test_email_connection(data.to_email, db, ctx.clinic_id)
 
     return ApiResponse(
         data=TestEmailResponse(

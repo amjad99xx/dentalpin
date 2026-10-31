@@ -459,15 +459,23 @@ class NotificationService:
         settings = await NotificationService.get_or_create_smtp_settings(db, clinic_id)
 
         # Handle password separately - encrypt if provided
+        password_changed = False
         if "password" in data:
             password = data.pop("password")
             if password:
                 settings.password_encrypted = encrypt_password(password)
+                password_changed = True
             # If password is None/empty, don't change existing password
 
-        # Reset verification if connection settings change
+        # Reset verification only if a connection setting's *value* actually
+        # changes — the frontend always resends host/port/username/use_tls/
+        # use_ssl on every save, so checking key presence alone invalidated
+        # a just-passed test even when nothing changed.
         connection_fields = {"host", "port", "username", "use_tls", "use_ssl"}
-        if any(field in data for field in connection_fields):
+        connection_changed = password_changed or any(
+            field in data and data[field] != getattr(settings, field) for field in connection_fields
+        )
+        if connection_changed:
             settings.is_verified = False
             settings.last_verified_at = None
 
@@ -665,8 +673,17 @@ class NotificationService:
         return True, "ok"
 
     @staticmethod
-    async def test_email_connection(to_email: str) -> EmailResult:
-        """Send a test email to verify configuration."""
+    async def test_email_connection(
+        to_email: str,
+        db: AsyncSession | None = None,
+        clinic_id: UUID | None = None,
+    ) -> EmailResult:
+        """Send a test email to verify configuration.
+
+        Passes ``db``/``clinic_id`` through so this exercises the clinic's
+        own SMTP override when one is configured, same as a real send —
+        otherwise ``email_service.send`` falls back to the global provider.
+        """
         from app.core.email.providers.base import EmailMessage
 
         message = EmailMessage(
@@ -688,7 +705,7 @@ class NotificationService:
             body_text="¡Conexión exitosa! Este es un email de prueba de DentalPin.",
         )
 
-        return await email_service.send(message)
+        return await email_service.send(message, db=db, clinic_id=clinic_id)
 
 
 async def budget_treatments_context(db: AsyncSession, budget_id: UUID) -> list[dict]:

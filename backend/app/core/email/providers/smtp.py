@@ -93,7 +93,14 @@ class SMTPProvider(EmailProvider):
         msg["To"] = to_addr
         msg["Subject"] = email.subject
         msg["Date"] = formatdate(localtime=True)
-        msg["Message-ID"] = make_msgid()
+        # Explicit domain: make_msgid() defaults to socket.getfqdn(), which
+        # inside a container resolves to the raw container id/hostname —
+        # e.g. "<...@70c12637617f>". A non-routable domain in Message-ID is
+        # a well-known spam signal; receivers may accept (250 OK) and then
+        # silently discard rather than bounce, which looks identical to a
+        # successful send on this end.
+        message_domain = from_email.rsplit("@", 1)[-1] or "localhost"
+        msg["Message-ID"] = make_msgid(domain=message_domain)
 
         if email.reply_to:
             msg["Reply-To"] = email.reply_to

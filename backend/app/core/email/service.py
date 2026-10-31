@@ -73,6 +73,7 @@ class EmailService:
                 username=settings.EMAIL_SMTP_USER or None,
                 password=settings.EMAIL_SMTP_PASSWORD or None,
                 use_tls=settings.EMAIL_SMTP_TLS,
+                use_ssl=settings.EMAIL_SMTP_SSL,
                 default_from_email=settings.EMAIL_FROM_ADDRESS,
                 default_from_name=settings.EMAIL_FROM_NAME,
             )

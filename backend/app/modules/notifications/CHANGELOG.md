@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+- fix: `POST /notifications/test` (the settings page's top-level "Test
+  connection" button) always exercised the global `EMAIL_PROVIDER`
+  default, ignoring the clinic's own SMTP override even when it was
+  saved, active and verified — so a correctly configured clinic still
+  saw "Email is not configured". It now resolves the provider the same
+  way a real send does: via `create_provider_for_clinic`, falling back
+  to global only when the clinic has no active SMTP settings.
+
+- fix: saving SMTP settings (`PUT /smtp-settings`) reset `is_verified`
+  to `false` on every save, not just when a connection field actually
+  changed — the check only looked at whether `host`/`port`/`username`/
+  `use_tls`/`use_ssl` were present in the request body, and the
+  frontend always sends all of them. A clinic that tested successfully
+  and then clicked Save immediately saw "Configured but not verified"
+  again, with nothing actually different. Now compares each field
+  against the stored value (and against a new password being set)
+  before invalidating verification.
+
 - fix(#765): `GET`/`PUT /preferences/patient/{id}` and
   `POST /conversations/{id}/reply` answer 404 unless the patient is the
   caller's clinic's. An unknown id hit the patients FK

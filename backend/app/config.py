@@ -181,6 +181,10 @@ class Settings(BaseSettings):
     EMAIL_SMTP_HOST: str = "smtp.gmail.com"
     EMAIL_SMTP_PORT: int = 587
     EMAIL_SMTP_TLS: bool = True
+    # Implicit TLS from connect (port 465), as opposed to STARTTLS on a
+    # plaintext connection. Mutually exclusive with EMAIL_SMTP_TLS — some
+    # providers/networks only work reliably with one of the two.
+    EMAIL_SMTP_SSL: bool = False
     EMAIL_SMTP_USER: str = ""
     EMAIL_SMTP_PASSWORD: str = ""
 
